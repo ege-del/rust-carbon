@@ -1,18 +1,18 @@
 use maud::{DOCTYPE, html, Markup};
-use crate::pages::partials::{head,footer};
+use crate::pages::partials::{Head,Footer};
 
 
-pub fn Page(page_title: &str) -> Markup {
+pub fn Index(page_title: &str) -> Markup {
     html! {
         (DOCTYPE)
         html{
-            (head::partial("this works ?"))
+            (Head("this works ?"))
             body {
                 div class="container-fluid"{
                     div class="col" {}
                 }
             }
-            (footer::partial("Site Footer"))
+            (Footer("Site Footer"))
         }
     }
 }

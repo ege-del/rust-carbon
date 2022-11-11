@@ -1,6 +1,6 @@
 use maud::{DOCTYPE, html, Markup};
 
-pub fn partial(page_title: &str) -> Markup {
+pub fn Head(page_title: &str) -> Markup {
     html! {
         head {
             title { (page_title) }

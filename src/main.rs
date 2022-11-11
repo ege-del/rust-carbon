@@ -8,19 +8,23 @@ use env_logger::{Env, Builder, WriteStyle};
 use actix_session::{config::PersistentSession, Session, SessionMiddleware, storage::CookieSessionStore};
 
 // not used right now, trying to figure out custom builder
-use log::{Level, LevelFilter, Log, MetadataBuilder, Record};
+// use log::{Level, LevelFilter, Log, MetadataBuilder, Record};
+
+
+// API
+mod routes;
+use routes::api;
 
 // MIDDLEWARES
 mod middleware;
-use middleware::say_hi::SayHi;
 
 // TEMPLATES
 use maud::{html, Markup};
 mod pages;
-mod model;
 
 // DATABASE
 use mongodb::{bson::doc, options::IndexOptions, Client, Collection, IndexModel};
+mod model;
 use model::User;
 
 const DB_NAME: &str = "myApp";
@@ -55,6 +59,17 @@ async fn get_user(client: web::Data<Client>, username: web::Path<String>) -> Htt
 }
 
 
+#[get("/lvl2")]
+async fn guard_2(session: Session) -> AwResult<Markup>  {
+    println!("guarded page is called");
+    Ok((pages::Index("ok")))
+}
+
+#[get("/")]
+async fn guarded_page(session: Session) -> AwResult<Markup>  {
+    println!("guarded page is called");
+    Ok((pages::Index("ok")))
+}
 
 #[get("/")]
 async fn index(session: Session) -> AwResult<Markup>  {
@@ -74,8 +89,10 @@ async fn index(session: Session) -> AwResult<Markup>  {
     //         title: "Example Domain"
     //     })
     // )
-    Ok((pages::index::Page("ok")))
+    Ok((pages::Index("ok")))
 }
+
+
 
 /// Creates an index on the "username" field to force the values to be unique.
 async fn create_username_index(client: &Client) {
@@ -84,8 +101,8 @@ async fn create_username_index(client: &Client) {
         .keys(doc! { "username": 1 })
         .options(options)
         .build();
-    client
-        .database(DB_NAME)
+    
+    client.database(DB_NAME)
         .collection::<User>(COLL_NAME)
         .create_index(model, None)
         .await
@@ -99,25 +116,23 @@ async fn main() -> std::io::Result<()> {
     let client = Client::with_uri_str(uri).await.expect("failed to connect");
     create_username_index(&client).await;
 
+    // let error_metadata = MetadataBuilder::new()
+    //     .target("myApp")
+    //     .level(Level::Error)
+    //     .build();
 
+    // let built = Record::builder()
+    //     .metadata(error_metadata)
+    //     .args(format_args!("Error!"))
+    //     .line(Some(433))
+    //     .file(Some("app.rs"))
+    //     .module_path(Some("server"))
+    //     .build();
 
-    let error_metadata = MetadataBuilder::new()
-        .target("myApp")
-        .level(Level::Error)
-        .build();
-
-    let built = Record::builder()
-        .metadata(error_metadata)
-        .args(format_args!("Error!"))
-        .line(Some(433))
-        .file(Some("app.rs"))
-        .module_path(Some("server"))
-        .build();
-
-    let stylish_logger = Builder::new()
-        .filter(None, LevelFilter::Error)
-        .write_style(WriteStyle::Always)
-        .build();
+    // let stylish_logger = Builder::new()
+    //     .filter(None, LevelFilter::Error)
+    //     .write_style(WriteStyle::Always)
+    //     .build();
 
 
     // env_logger::init_from_env(stylish_logger);
@@ -125,31 +140,36 @@ async fn main() -> std::io::Result<()> {
     
     // .wrap(Logger::new("%a %{User-Agent}i"))
 
-
-
     HttpServer::new(move || {
         App::new()
-            // .wrap(Logger::new("%a %{User-Agent}i"))
+            .wrap(Logger::new("%a %{User-Agent}i"))
             .wrap(
                 SessionMiddleware::builder(CookieSessionStore::default(), Key::from(&[0; 64]))
                     .cookie_secure(false)
                     .build()
             )
-            .wrap(SayHi)
+            .wrap(middleware::SayHi)
+            // what this ?  .app_data(web::Data::new(client.clone()))
             .app_data(web::Data::new(client.clone()))
             .service(fs::Files::new("/public", "./src/public").show_files_listing())
             .service(
-                web::resource("/").route(
-                    web::route()
-                        .guard(guard::Get())
-                        .to(index),
-            ))
-            .service(
-                web::scope("/users")
+                web::scope("/user")
+                    .guard(guard::Get())
                     .service(add_user)
                     .service(get_user),
-            )
-            .service(index)
+            ).service(
+                web::scope("/guarded_page")
+                    .guard(guard::Get())
+                    .service(guarded_page)
+            ).service(
+                web::scope("")
+                    .service(index)
+            ).service(
+                web::scope("api/user")
+                    .service(api::register)
+                    .service(api::login)
+                    .service(api::logout)
+            ).service(index)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
