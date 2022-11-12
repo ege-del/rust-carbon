@@ -27,7 +27,9 @@ pub async  fn add(client: web::Data<Client>, form: web::Json<model::Note>) -> Re
 
     match result {
         Ok(_) => Ok(web::Json(oke)),
-        Err(err) => Ok(web::Json(erre)),
+        Err(err) => Ok(web::Json(MyObj {
+            name: err.to_string(),
+        })),
     }
 }
 // #[get("/get")]
