@@ -7,3 +7,8 @@ pub struct User {
     pub username: String,
     pub email: String,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct Note {
+    pub text: String,
+}

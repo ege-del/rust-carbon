@@ -1,16 +1,33 @@
-use actix_web::{web,HttpResponse};
+use actix_web::{post, get, web,Responder, Result, HttpResponse};
 use mongodb::{bson::doc, options::IndexOptions, Client, Collection, IndexModel};
-mod model;
+use crate::model;
+use serde::Serialize;
 
-impl Note{
-    #[post("/add")]
-    pub async  fn add(client: web::Data<Client>, form: web::Form<model::User>) -> HttpResponse {
-        let collection = client.database(DB_NAME).collection(COLL_NAME);
-        let result = collection.insert_one(form.into_inner(), None).await;
-        match result {
-            Ok(_) => HttpResponse::Ok().body("user added"),
-            Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
-        }
+#[derive(Serialize)]
+struct MyObj {
+    name: String,
+}
+
+#[get("/path")]
+pub async fn path() -> HttpResponse {
+    HttpResponse::Ok().body("data")
+}
+
+#[post("/add")]
+pub async  fn add(client: web::Data<Client>, form: web::Json<model::Note>) -> Result<impl Responder> {
+    let erre = MyObj {
+        name: "err".to_string(),
+    };
+    let oke = MyObj {
+        name: "ok".to_string(),
+    };
+    println!("adding to {}",dotenv!("MONGO_DB"));
+    let collection = client.database(dotenv!("MONGO_DB")).collection("notes");
+    let result = collection.insert_one(form, None).await;
+
+    match result {
+        Ok(_) => Ok(web::Json(oke)),
+        Err(err) => Ok(web::Json(erre)),
     }
 }
 // #[get("/get")]
